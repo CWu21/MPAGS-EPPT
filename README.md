@@ -1,4 +1,4 @@
-The first version of code calculates the distribution of the positions of mu+ hits on Drift Chambers.
+The first version of code plots the distribution of the positions of mu+ hits on Drift Chambers.
 
 The plots in folder ./Hits show the distrubution.
 Example: 
