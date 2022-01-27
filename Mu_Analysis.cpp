@@ -11,6 +11,7 @@
 #include "TH1.h"
 #include "TH2.h"
 #include "TCanvas.h"
+#include "TMath.h"
 #include "TTree.h"
 #include "TTreeReader.h"
 #include "TTreeReaderValue.h"
@@ -26,8 +27,20 @@
 std::vector<std::map<int, std::vector<double>>> HitsDC1L(5);
 std::vector<std::map<int, std::vector<double>>> HitsDC2L(5);
 vector<int> flag(1000);
+vector<TH1F*> H2;
+
+auto pi = TMath::Pi();
+
+void DefineHistos(){
+
+    H2.push_back(new TH1F("Start_Point_x","Start Point (z = -8m);x(m);Entries",100,-0.0005,0.0005));
+    H2.push_back(new TH1F("Start_Point_y","Start Point (z = -8m);y(m);Entries",100,-0.0005,0.0005));
+    H2.push_back(new TH1F("Start_Angle_xz","Start Angle in xz plane;/phi (degree);Entries",100,-0.005,0.005));
+    H2.push_back(new TH1F("Start_Angle_yz","Start Angle in yz plane;/theta (degree);Entries",100,-0.005,0.005));
+    H2.push_back(new TH1F("Momentum","Momentum;P (GeV);Entries",100,45,55));
 
 
+}
 
 void DrawHitsLocation(){
 
@@ -123,7 +136,7 @@ void DrawHitsLocation(){
 
 //----------------Drawing-----------------
  
-    for(int j=0; j<30; j++) {
+/*   for(int j=0; j<30; j++) {
             string Save(H[j]->GetName());
             TString SaveAs="Hits/"+Save+".png";
             TCanvas* C=new TCanvas();
@@ -131,31 +144,102 @@ void DrawHitsLocation(){
             C->SaveAs(SaveAs);
     }
 
+*/
+}
+
+double GetMomentum(double x1, double y1, double x2, double y2, double phi1, double phi2){
+
+    double d = sqrt(pow((x2 - x1),2)+1*1);
+    double phi = fabs(phi1-phi2);
+    double R = d*0.5/sin(phi/2);
+    double Pt = 0.3*0.5*R; // Transverse Momentum Pt = 0.3*z*B*R
+
+    double y = fabs(y1-y2);
+    double P3 = 0.3*0.5*y/phi; // Momentum along the magnetic field
+
+    double P = sqrt(pow(Pt,2)+pow(P3,2));
+
+    //std::cout <<"------------------------"<<std::endl;
+    //std::cout <<" R = "<<R<<std::endl;
+    //std::cout <<" phi = "<<phi<<std::endl;
+    //std::cout <<" d = "<<d<<std::endl;
+    //std::cout <<" PT = "<<Pt<<std::endl;
+    //std::cout <<" P3 = "<<P3<<std::endl;
+
+    return P;
+}   
+
+void ReadParameter(TGraph *gr1, TGraph *gr2, TGraph *gr3, TGraph *gr4){
+    
+    TF1 *func1 = gr1->GetFunction("pol1");
+    TF1 *func2 = gr2->GetFunction("pol1");
+    double a1 = func1->GetParameter(0);
+    double b1 = func1->GetParameter(1);
+    double a2 = func2->GetParameter(0);
+    double b2 = func2->GetParameter(1);
+    
+    TF1 *func3 = gr3->GetFunction("pol1");
+    TF1 *func4 = gr4->GetFunction("pol1");
+    double c1 = func3->GetParameter(0);
+    double d1 = func3->GetParameter(1);
+    double c2 = func4->GetParameter(0);
+    double d2 = func4->GetParameter(1);
+
+    double x0 = a1+b1*(-8);   // start point
+    double y0 = c1+d1*(-8);
+    double phi1 = atan(b1); // angles in DC1
+    double theta1 = atan(d1);
+    double phi2 = atan(b2); // angles in DC2
+    double theta2 = atan(d2);
+
+    double x1 = a1+b1*(-0.5);
+    double y1 = c1+d1*(-0.5);
+    double x2 = a2+b2*(0.5);
+    double y2 = c2+d2*(0.5);  // in and out point of magnetic field
+
+    double P = GetMomentum(x1, y1, x2, y2, phi1, phi2);
+
+     //std::cout <<" x0 = "<< x0 <<" angle = "<<theta1-theta2<<std::endl;
+     //std::cout <<" in = "<< x1 <<" out = "<<x2<<std::endl;
+
+    H2[0]->Fill(x0);
+    H2[1]->Fill(y0);
+    H2[2]->Fill(phi1*180/pi);
+    H2[3]->Fill(theta1*180/pi);
+    H2[4]->Fill(P);
+
+    //std::cout <<" P = "<<P<<std::endl;
 
 }
 
 void  DrawTracks(){
    
-   vector<TGraph*> gr1,gr2;
+   vector<TGraph*> gr1, gr2, gr3, gr4;
    int row;
    Int_t j=0;
-   TCanvas *c1 = new TCanvas("Tracks","Tracks",200,10,600,400);
+   TCanvas *c1 = new TCanvas("Tracks","Tracks");
    TMultiGraph *mg1 = new TMultiGraph();
    TMultiGraph *mg2 = new TMultiGraph();
-    mg1->SetTitle("DC1 Tracks;z(m);x");
-    mg2->SetTitle("DC2 Tracks;z(m);x");
+   TMultiGraph *mg3 = new TMultiGraph();
+   TMultiGraph *mg4 = new TMultiGraph();
+    mg1->SetTitle("DC1 Tracks x;z(m);x(m)");
+    mg2->SetTitle("DC2 Tracks x;z(m);x(m)");
+    mg3->SetTitle("DC1 Tracks y;z(m);y(m)");
+    mg4->SetTitle("DC2 Tracks y;z(m);y(m)");
 
    for(row=0;row<1000;row++){
 
     if(flag[row]==1){
-        Double_t x[5], z[5], x1[5], z1[5];
+        Double_t x[5], y[5], z[5], x1[5], y1[5], z1[5];
         Int_t n = 5;
         for (Int_t i=0;i<n;i++) {
 
-            x[i] = HitsDC1L[i][row][0];
-            z[i] = HitsDC1L[i][row][2]*0.5;
-            x1[i]= HitsDC2L[i][row][0];
-            z1[i]= HitsDC1L[i][row][2]*0.5;
+            x[i] = HitsDC1L[i][row][0]*0.001;
+            y[i] = HitsDC1L[i][row][1]*0.001;
+            z[i] = HitsDC1L[i][row][2]*0.5-6.25;
+            x1[i]= HitsDC2L[i][row][0]*0.001;
+            y1[i]= HitsDC2L[i][row][1]*0.001;
+            z1[i]= HitsDC1L[i][row][2]*0.5+2.25;
       }
 
   //----------for debugging-----
@@ -168,29 +252,58 @@ void  DrawTracks(){
 */
 
     gr1.push_back(new TGraph(n,z,x));
-    gr1[j]->SetLineColor(4);
-    mg1->Add(gr1[j]);
-
     gr2.push_back(new TGraph(n,z1,x1));
+    gr3.push_back(new TGraph(n,z,y));
+    gr4.push_back(new TGraph(n,z1,y1));
+
+    gr1[j]->Fit("pol1","Q");
+    gr2[j]->Fit("pol1","Q");
+    gr3[j]->Fit("pol1","Q");
+    gr4[j]->Fit("pol1","Q");
+
+    gr1[j]->SetLineColor(4);
     gr2[j]->SetLineColor(4);
+    gr3[j]->SetLineColor(4);
+    gr4[j]->SetLineColor(4);
+
+    mg1->Add(gr1[j]);
     mg2->Add(gr2[j]);
+    mg3->Add(gr3[j]);
+    mg4->Add(gr4[j]);
+
+    ReadParameter(gr1[j], gr2[j], gr3[j], gr4[j]);
     
     j++;
    }
    }
 
     mg1->Draw("AC*");
-    c1->SaveAs("Hits/Dc1Tracks.png");
+    c1->SaveAs("Hits/Dc1Tracks_x.png");
     mg2->Draw("AC*");
-    c1->SaveAs("Hits/Dc2Tracks.png");
+    c1->SaveAs("Hits/Dc2Tracks_x.png");
+    mg3->Draw("AC*");
+    c1->SaveAs("Hits/Dc1Tracks_y.png");
+    mg4->Draw("AC*");
+    c1->SaveAs("Hits/Dc2Tracks_y.png");
 }
-
 
 
 
 void Mu_Analysis(){
 
+    DefineHistos();
     DrawHitsLocation();
     DrawTracks();
+
+   for(int j=0; j<H2.size(); j++) {
+            string Save(H2[j]->GetName());
+            TString SaveAs="Hits/"+Save+".png";
+            TCanvas* C=new TCanvas();
+            
+            std::cout <<" Fit for "<< Save <<" : "<<std::endl;
+            H2[j]->Fit("gaus");
+            H2[j]->Draw();
+            C->SaveAs(SaveAs);
+   }
 
 }
