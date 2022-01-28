@@ -37,7 +37,7 @@ void DefineHistos(){
     H2.push_back(new TH1F("Start_Point_y","Start Point (z = -8m);y(m);Entries",100,-0.0005,0.0005));
     H2.push_back(new TH1F("Start_Angle_xz","Start Angle in xz plane;/phi (degree);Entries",100,-0.005,0.005));
     H2.push_back(new TH1F("Start_Angle_yz","Start Angle in yz plane;/theta (degree);Entries",100,-0.005,0.005));
-    H2.push_back(new TH1F("Momentum","Momentum;P (GeV);Entries",100,45,55));
+    H2.push_back(new TH1F("Momentum","Momentum;P (GeV);Entries",100,95,105));
 
 
 }
@@ -149,7 +149,7 @@ void DrawHitsLocation(){
 
 double GetMomentum(double x1, double y1, double x2, double y2, double phi1, double phi2){
 
-    double d = sqrt(pow((x2 - x1),2)+1*1);
+    double d = sqrt(pow((x2 - x1),2)+2*2);
     double phi = fabs(phi1-phi2);
     double R = d*0.5/sin(phi/2);
     double Pt = 0.3*0.5*R; // Transverse Momentum Pt = 0.3*z*B*R
@@ -185,17 +185,17 @@ void ReadParameter(TGraph *gr1, TGraph *gr2, TGraph *gr3, TGraph *gr4){
     double c2 = func4->GetParameter(0);
     double d2 = func4->GetParameter(1);
 
-    double x0 = a1+b1*(-8);   // start point
+    double x0 = a1+b1*(-8);   // start point5.7
     double y0 = c1+d1*(-8);
     double phi1 = atan(b1); // angles in DC1
     double theta1 = atan(d1);
     double phi2 = atan(b2); // angles in DC2
     double theta2 = atan(d2);
 
-    double x1 = a1+b1*(-0.5);
-    double y1 = c1+d1*(-0.5);
-    double x2 = a2+b2*(0.5);
-    double y2 = c2+d2*(0.5);  // in and out point of magnetic field
+    double x1 = a1+b1*(-1);
+    double y1 = c1+d1*(-1);
+    double x2 = a2+b2*(1);
+    double y2 = c2+d2*(1);  // in and out point of magnetic field
 
     double P = GetMomentum(x1, y1, x2, y2, phi1, phi2);
 
@@ -236,10 +236,10 @@ void  DrawTracks(){
 
             x[i] = HitsDC1L[i][row][0]*0.001;
             y[i] = HitsDC1L[i][row][1]*0.001;
-            z[i] = HitsDC1L[i][row][2]*0.5-6.25;
+            z[i] = HitsDC1L[i][row][2]*0.5-6;
             x1[i]= HitsDC2L[i][row][0]*0.001;
             y1[i]= HitsDC2L[i][row][1]*0.001;
-            z1[i]= HitsDC1L[i][row][2]*0.5+2.25;
+            z1[i]= HitsDC1L[i][row][2]*0.5+2.5;
       }
 
   //----------for debugging-----
@@ -299,7 +299,7 @@ void Mu_Analysis(){
             string Save(H2[j]->GetName());
             TString SaveAs="Hits/"+Save+".png";
             TCanvas* C=new TCanvas();
-            
+
             std::cout <<" Fit for "<< Save <<" : "<<std::endl;
             H2[j]->Fit("gaus");
             H2[j]->Draw();
