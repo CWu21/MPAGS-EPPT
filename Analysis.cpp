@@ -14,6 +14,8 @@
 #include "TPaveText.h"
 #include "TStyle.h"
 #include <tuple>
+#include "TLatex.h"
+#include <TMarker.h>
 
 map <int, vector<double>> EC, HC, DC1X, DC1Y, DC1Z, DC2X, DC2Y, DC2Z;
 vector<double> ECtot, HCtot, a, b, c, d;
@@ -31,15 +33,15 @@ void DefineHistos(){
     H2.push_back(new TH1F("HCEnergy_x","HC;x (cm);Entries",100,-150,150));
     H2.push_back(new TH1F("HCEnergy_y","HC;y (cm);Entries",50,-30,30));
 
-    H2.push_back(new TH1F("ECEnergy","EC;Energy(GeV);Entries",100,90,100));
-    H2.push_back(new TH1F("HCEnergy","HC;Energy(GeV);Entries",100,0,10));
-    H2.push_back(new TH1F("TotalEnergy","Energy;Energy(GeV);Entries",100,90,100));
-
+    H2.push_back(new TH1F("ECEnergy","EC;Energy(GeV);Entries",100,0,200));
+    H2.push_back(new TH1F("HCEnergy","HC;Energy(GeV);Entries",100,0,200));
+    H2.push_back(new TH1F("TotalEnergy","Energy;Energy(GeV);Entries",100,0,200));
+    H2.push_back(new TH1F("RecEnergy","Reconstructed Energy;Energy(GeV);Entries",100,0,200));
 }
 
 void DefineBranches(){
     
-    TFile *myFile = TFile::Open("./Positron_100GeV_0p5T.root");
+    TFile *myFile = TFile::Open("./Proton_100GeV_0p5T.root");
 
     TTreeReader R("B5", myFile);
 
@@ -267,6 +269,12 @@ void DrawTracks(){
 
 }
 
+void HCCalibration(){
+
+
+
+}
+
 void DrawEMC(){
     TCanvas *c2 = new TCanvas("ECHits","ECHits");
     TGraph *grEMC1 = new TGraph();
@@ -323,8 +331,8 @@ void DrawHC(){
 
 void DrawEnergyDistribution(){
     TCanvas *c = new TCanvas();
-    TH2* h1 = new TH2D("ECEnergy","ECEnergy", 50, -150, 150, 50, -30, 30);
-    TH2* h2 = new TH2D("HCEnergy","HCEnergy", 50, -150, 150, 50, -30, 30);
+    TH2* h1 = new TH2D("ECEnergy","ECEnergy_xy", 50, -150, 150, 50, -30, 30);
+    TH2* h2 = new TH2D("HCEnergy","HCEnergy_xy", 50, -150, 150, 50, -30, 30);
 
     for(int j = 0; j < 1000; j++){
         int ECx, ECy, HCx, HCy;
@@ -359,7 +367,7 @@ void DrawEnergyDistribution(){
 
         H2[5]->Fill(ECtot[j]/1000,1);
         H2[6]->Fill(HCtot[j]/1000,1);
-        H2[7]->Fill((ECtot[j]+HCtot[j])/1000,1);
+        H2[7]->Fill((ECtot[j]+HCtot[j])/(1000),1);
 
     }
     h1->GetXaxis()->SetTitle("x(cm)");
@@ -378,6 +386,46 @@ void DrawEnergyDistribution(){
 
 }
 
+Double_t myFunc(double x, double y) {
+       
+    Double_t chi2 = 0;
+    for(int i=0; i<1000; i++){
+        chi2 += pow((100-x*ECtot[i]/1000-y*HCtot[i]/1000),2)/100;
+    }  
+
+    return log(chi2);
+    
+    }
+
+void HADcalibration(){
+
+    TCanvas *c = new TCanvas();
+    std::cout << "--------------HAD calibration----------------- "<< std::endl;
+
+    TF2 *f1 = new TF2("f1","myFunc(x,y)",0,1.5,0,30);
+
+    double zmin = f1->GetMinimum();
+    double x0, y0;
+    f1->GetMinimumXY(x0, y0);
+    std::cout << "zmin = " << zmin<< std::endl;
+    std::cout << "x0 = " << x0<< ", y0 = " << y0<< std::endl;
+
+    f1->GetXaxis()->SetTitle("#alpha");
+    f1->GetYaxis()->SetTitle("#beta");
+    f1->SetTitle("ln #chi^2");
+    //f1->Draw("lego");
+    f1->Draw("CONT4Z LIST");
+    c->SaveAs("Hits/chi2.png");
+
+    for(int i=0; i<1000; i++){
+        
+        Double_t RecEnergy = x0*ECtot[i] + y0*HCtot[i];
+        //std::cout << "RecE: "<<RecEnergy<< std::endl;
+        H2[8]->Fill(RecEnergy/1000,1);
+    }
+
+}
+
 
 
 void Analysis(){
@@ -386,9 +434,11 @@ void Analysis(){
     DefineHistos();
     DefineBranches();
     DrawTracks();
+    //HCCalibration();
     //DrawEMC();
     //DrawHC();
     DrawEnergyDistribution();
+    HADcalibration();
     
     for(int j=0; j<H2.size(); j++) {
             string Save(H2[j]->GetName());
@@ -400,6 +450,7 @@ void Analysis(){
             H2[j]->Draw();
             C->SaveAs(SaveAs);
    }
+
 
 
 }
